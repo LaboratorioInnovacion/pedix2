@@ -8,12 +8,12 @@
 | 400-line budget risk | High |
 | Chained PRs recommended | Yes |
 | Suggested split | PR A: runtime/test harness -> PR B: DB/domain/docs |
-| Delivery strategy | ask-on-risk |
-| Chain strategy | pending |
+| Delivery strategy | ask-on-risk, resolved by user approval for Work Unit A only |
+| Chain strategy | stacked-to-main |
 
-Decision needed before apply: Yes
+Decision needed before apply: No
 Chained PRs recommended: Yes
-Chain strategy: pending
+Chain strategy: stacked-to-main
 400-line budget risk: High
 
 ### Suggested Work Units
@@ -25,12 +25,12 @@ Chain strategy: pending
 
 ## Work Unit A: Runtime Foundation
 
-- [ ] 1.1 Create private/public layout and placeholders: `api/{app,bootstrap,config,database/migrations,storage/logs}`, `public_html/`. Verify with tests. Accepts Layout/Private path blocked.
-- [ ] 1.2 Add config and bootstrap: `api/bootstrap/{paths.php,autoload.php,app.php}`, `api/config/{app.php,database.php}`, `api/app/Config/Config.php`. Verify missing config safe failure. Accepts Bootstrap config.
-- [ ] 1.3 Add support layer: `api/app/Support/{Logger.php,ErrorHandler.php}` with safe JSON envelope and request-id logging. Accepts non-secret errors.
-- [ ] 1.4 Add HTTP primitives: `api/app/Http/{Request.php,JsonResponse.php,Router.php,Middleware.php}`. Accepts `/health`, 404, 405, no business routes.
-- [ ] 1.5 Add middleware and front controller: `RequestIdMiddleware.php`, `SecurityHeadersMiddleware.php`, `public_html/index.php`. Accepts order and baseline headers on success/error.
-- [ ] 1.6 Add harness skeleton and smoke tests: `tools/run-tests.php`, `tests/TestCase.php`, `tests/FoundationRuntimeTest.php`, `tests/HttpSmokeTest.php`. Verify `C:\tools\php-8.3\php.exe tools\run-tests.php`. Commit boundary: `feat(foundation): add runtime bootstrap and health boundary`; tests stay in same commit. No auth/catalog/pricing/order/payment/delivery logic.
+- [x] 1.1 Create private/public layout and placeholders: `api/{app,bootstrap,config,database/migrations,storage/logs}`, `public_html/`. Verify with tests. Accepts Layout/Private path blocked.
+- [x] 1.2 Add config and bootstrap: `api/bootstrap/{paths.php,autoload.php,app.php}`, `api/config/{app.php,database.php}`, `api/app/Config/Config.php`. Verify missing config safe failure. Accepts Bootstrap config.
+- [x] 1.3 Add support layer: `api/app/Support/{Logger.php,ErrorHandler.php}` with safe JSON envelope and request-id logging. Accepts non-secret errors.
+- [x] 1.4 Add HTTP primitives: `api/app/Http/{Request.php,JsonResponse.php,Router.php,Middleware.php}`. Accepts `/health`, 404, 405, no business routes.
+- [x] 1.5 Add middleware and front controller: `RequestIdMiddleware.php`, `SecurityHeadersMiddleware.php`, `public_html/index.php`. Accepts order and baseline headers on success/error.
+- [x] 1.6 Add harness skeleton and smoke tests: `tools/run-tests.php`, `tests/TestCase.php`, `tests/FoundationRuntimeTest.php`, `tests/HttpSmokeTest.php`. Verify `C:\tools\php-8.3\php.exe tools\run-tests.php`. Commit boundary: `feat(foundation): add runtime bootstrap and health boundary`; tests stay in same commit. No auth/catalog/pricing/order/payment/delivery logic.
 
 ## Work Unit B: Data and Domain Primitives
 
