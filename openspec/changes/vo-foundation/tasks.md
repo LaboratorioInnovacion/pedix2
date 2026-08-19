@@ -34,9 +34,9 @@ Chain strategy: stacked-to-main
 
 ## Work Unit B: Data and Domain Primitives
 
-- [ ] 2.1 Add PDO boundary: `api/app/Database/{Connection.php,PdoConnection.php}` plus tests proving lazy connection, prepared parameters, fail-closed transactions. Accepts PDO boundary/Prepared query.
-- [ ] 2.2 Add migrations: `api/app/Database/MigrationRunner.php`, `tools/run-migrations.php`, migration tests with fakes. Accepts Run twice and duplicate-version refusal.
-- [ ] 2.3 Add Money VO: `api/app/Domain/Money.php`, `tests/MoneyTest.php`. Accepts integer cents, rejects floats, same-currency add/subtract, half-even percentage.
-- [ ] 2.4 Add state helper: `api/app/Domain/{StateMachine.php,InvalidTransition.php,TransitionHistoryHook.php}`, `tests/StateMachineTest.php`. Accepts invalid transition exception and optional history hook.
-- [ ] 2.5 Add idempotency helper: `api/app/Domain/{IdempotencyStore.php,InMemoryIdempotencyStore.php,IdempotencyOutcome.php}`, `tests/IdempotencyTest.php`. Accepts duplicate attempt returns first marker.
-- [ ] 2.6 Add README run instructions and scope guard checks: `README.md`, `tests/ScopeGuardTest.php`. Verify `C:\tools\php-8.3\php.exe tools\run-tests.php`; optional `php tools/run-tests.php` where PHP is on PATH. Commit boundary: `feat(foundation): add data and domain primitives`; docs/tests stay with code. No business workflow decisions.
+- [x] 2.1 Add PDO boundary: `api/app/Database/{Connection.php,PdoConnection.php}` plus tests proving lazy connection, prepared parameters, fail-closed transactions. Accepts PDO boundary/Prepared query.
+- [x] 2.2 Add migrations: `api/app/Database/MigrationRunner.php`, `tools/run-migrations.php`, migration tests with fakes. Accepts Run twice and duplicate-version refusal.
+- [x] 2.3 Add Money VO: `api/app/Domain/Money.php`, `tests/MoneyTest.php`. Accepts integer cents, rejects floats, same-currency add/subtract, half-even percentage.
+- [x] 2.4 Add state helper: `api/app/Domain/{StateMachine.php,InvalidTransition.php,TransitionHistoryHook.php}`, `tests/StateMachineTest.php`. Accepts invalid transition exception and optional history hook.
+- [x] 2.5 Add idempotency helper: `api/app/Domain/{IdempotencyStore.php,InMemoryIdempotencyStore.php,IdempotencyOutcome.php}`, `tests/IdempotencyTest.php`. Accepts duplicate attempt returns first marker.
+- [x] 2.6 Add README run instructions and scope guard checks: `README.md`, `tests/ScopeGuardTest.php`. Verify `D:\xampp\php\php.exe tools\run-tests.php`; optional `php tools/run-tests.php` where PHP is on PATH. Commit boundary: `feat(foundation): add data and domain primitives`; docs/tests stay with code. No business workflow decisions.
