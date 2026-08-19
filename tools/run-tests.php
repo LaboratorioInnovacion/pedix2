@@ -7,6 +7,13 @@ define('VO_TESTING', true);
 require __DIR__ . '/../api/bootstrap/autoload.php';
 require __DIR__ . '/../tests/TestCase.php';
 
+$filter = null;
+for ($i = 1; $i < $argc; $i++) {
+    if ($argv[$i] === '--filter' && isset($argv[$i + 1])) {
+        $filter = array_filter(array_map('trim', explode(',', $argv[++$i])));
+    }
+}
+
 $files = glob(__DIR__ . '/../tests/*Test.php') ?: [];
 $failures = 0;
 $tests = 0;
@@ -14,6 +21,9 @@ $tests = 0;
 foreach ($files as $file) {
     require_once $file;
     $class = 'Tests\\' . basename($file, '.php');
+    if ($filter !== null && !in_array(basename($file, '.php'), $filter, true)) {
+        continue;
+    }
     $case = new $class();
     foreach (get_class_methods($case) as $method) {
         if (!str_starts_with($method, 'test')) {
