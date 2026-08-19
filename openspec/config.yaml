@@ -1,0 +1,103 @@
+schema: spec-driven
+project: pedix2
+artifact_store: both
+execution_mode: auto
+delivery_strategy: ask-on-risk
+review_budget_lines: 400
+
+context: |
+  Greenfield project for Vender Online Core V1, based on the approved master specification.
+  Target production stack: PHP 8.x, Apache, MySQL/MariaDB, HTML5/CSS/JavaScript ES6+.
+  No production dependency on Node.js, Docker, Redis, workers, WebSockets, or SSH.
+  Backend architecture: Route -> Middleware -> Controller -> Service -> Repository -> MySQL.
+  SQL access must use PDO with prepared statements and allowlists for non-parameterizable dynamic SQL.
+  Backend is the source of truth for prices, permissions, and states.
+  Money is stored/calculated as integer cents; live mutable business data must preserve historical snapshots.
+  Critical state-changing operations must be transactional, idempotent, authorized, and CSRF-protected when authenticated.
+
+environment:
+  os: windows
+  git:
+    available: true
+    version: "git version 2.53.0.windows.1"
+  php:
+    required: "8.x"
+    available: false
+    version: null
+  composer:
+    available: false
+    version: null
+  mysql:
+    target: "MySQL/MariaDB"
+    mysql_cli_available: false
+    mysql_cli_version: null
+    mariadb_cli_available: false
+    mariadb_cli_version: null
+
+testing:
+  strict_tdd: false
+  strict_tdd_reason: "No runnable test command exists yet: PHP and Composer are not available on PATH, and the greenfield repository has no composer.json, PHPUnit dependency, or pure-PHP test harness."
+  detected_at: "2026-08-19"
+  runner:
+    available: false
+    command: ""
+    framework: null
+  layers:
+    unit:
+      available: false
+      tool: null
+    integration:
+      available: false
+      tool: null
+    e2e:
+      available: false
+      tool: null
+  coverage:
+    available: false
+    command: ""
+  quality:
+    linter:
+      available: false
+      command: ""
+    type_checker:
+      available: false
+      command: ""
+    formatter:
+      available: false
+      command: ""
+  future_bootstrap_options:
+    - "Install PHP 8.x and Composer locally, then add composer.json with PHPUnit and a test script."
+    - "If Composer/PHPUnit is not viable for the target environment, add a committed pure-PHP test harness with a runnable command."
+
+rules:
+  proposal:
+    - "Preserve the approved master specification as authoritative product scope."
+    - "Call out any change that would add forbidden production dependencies."
+    - "Include rollback and data migration risk notes for persistence changes."
+  specs:
+    - "Use RFC 2119 keywords: MUST, SHALL, SHOULD, MAY."
+    - "Use Given/When/Then scenarios for observable behavior."
+    - "Keep backend economic/state rules as the source of truth; the frontend must not duplicate critical pricing logic."
+  design:
+    - "Follow Route -> Middleware -> Controller -> Service -> Repository -> MySQL."
+    - "Document transactions, idempotency keys, state machines, snapshots, and security boundaries for critical flows."
+    - "Prefer shared-hosting-compatible PHP/MySQL designs over background workers or service dependencies."
+  tasks:
+    - "Group implementation into reviewable work units under 400 changed lines when practical."
+    - "Include test/bootstrap tasks before enabling Strict TDD."
+    - "Do not create product code during init-only work."
+  apply:
+    guidelines:
+      - "Do not implement without an approved proposal/spec/design/tasks chain."
+      - "Use PDO prepared statements for SQL access."
+      - "Store money as integer cents."
+      - "Protect authenticated state changes with CSRF, authorization, and transaction boundaries."
+    tdd: false
+    test_command: ""
+  verify:
+    test_command: ""
+    build_command: ""
+    coverage_threshold: 0
+  archive:
+    - "Archive completed changes under openspec/changes/archive/YYYY-MM-DD-{change-name}/."
+    - "Warn before merging destructive or scope-changing deltas."
