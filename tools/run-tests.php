@@ -42,6 +42,16 @@ final class InstallerTestServer
         $code = 0; foreach ($http_response_header ?? [] as $h) { if (preg_match('/^HTTP\/\S+\s+(\d+)/', $h, $m)) $code = (int) $m[1]; if (stripos($h, 'Set-Cookie:') === 0) file_put_contents($this->cookie, trim(substr($h, 11)) . "\n", FILE_APPEND); }
         return ['status' => $code, 'body' => $body ?: '', 'headers' => $http_response_header ?? []];
     }
+    public function upload(string $path, array $fields, string $field, string $file, string $name): array
+    {
+        $boundary='----vo'.bin2hex(random_bytes(12)); $body='';
+        foreach($fields as $key=>$value)$body.="--$boundary\r\nContent-Disposition: form-data; name=\"$key\"\r\n\r\n$value\r\n";
+        $body.="--$boundary\r\nContent-Disposition: form-data; name=\"$field\"; filename=\"$name\"\r\nContent-Type: application/octet-stream\r\n\r\n".file_get_contents($file)."\r\n--$boundary--\r\n";
+        $options=['ignore_errors'=>true,'method'=>'POST','follow_location'=>$this->noRedirects?0:1,'max_redirects'=>$this->noRedirects?0:20,'header'=>"Cookie: ".$this->cookieHeader()."\r\nContent-Type: multipart/form-data; boundary=$boundary\r\n",'content'=>$body];
+        $response=file_get_contents($this->url($path),false,stream_context_create(['http'=>$options])); $code=0;
+        foreach($http_response_header??[] as $header)if(preg_match('/^HTTP\/\S+\s+(\d+)/',$header,$m))$code=(int)$m[1];
+        return ['status'=>$code,'body'=>$response?:'','headers'=>$http_response_header??[]];
+    }
     private function cookieHeader(): string { if (!is_file($this->cookie)) return ''; $pairs = []; foreach (file($this->cookie, FILE_IGNORE_NEW_LINES) ?: [] as $c) { $pair = explode(';', $c, 2)[0]; $name = explode('=', $pair, 2)[0]; $pairs[$name] = $pair; } return implode('; ', array_values($pairs)); }
     public function stop(): void { if (is_resource($this->process)) { $s = proc_get_status($this->process); proc_terminate($this->process); usleep(150000); $s2 = proc_get_status($this->process); if (($s2['running'] ?? false) && ($s['pid'] ?? 0) > 0 && PHP_OS_FAMILY === 'Windows') @exec('taskkill /F /T /PID ' . (int) $s['pid']); proc_close($this->process); } foreach (array_unique($this->envKeys) as $k) putenv($k); if ($this->cookie) @unlink($this->cookie); }
     public function __destruct() { $this->stop(); }

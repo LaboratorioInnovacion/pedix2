@@ -34,6 +34,12 @@ final class PaymentRepository
         return $this->getById($id) ?? [];
     }
 
+    public function attachProof(int $id, string $path): array
+    {
+        $this->db->execute('UPDATE payments SET proof_path=? WHERE id=?', [$path,$id]);
+        return $this->getById($id) ?? [];
+    }
+
     public function insertEvent(int $paymentId, string $eventType, array $payload = []): void
     {
         $json = $payload === [] ? null : json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);

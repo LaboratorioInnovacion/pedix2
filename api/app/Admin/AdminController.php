@@ -45,6 +45,8 @@ final class AdminController
         if ($this->isCatalogPath($path)) (new CatalogAdminController($this->pdo, $this->sessions, $this->csrf, $this->tpl, $this->audit, $this->requestId))->handle($method, $path);
         if ($this->isPromotionsPath($path)) (new PromotionsAdminController($this->pdo, $this->sessions, $this->csrf, $this->tpl, $this->audit, $this->requestId))->handle($method, $path);
         if ($this->isOrdersPath($path)) (new OrdersAdminController($this->pdo, $this->sessions, $this->csrf, $this->tpl, $this->audit, $this->requestId))->handle($method, $path);
+        if ($this->isPaymentsPath($path)) (new PaymentsAdminController($this->pdo,$this->sessions,$this->csrf,$this->tpl,$this->audit,$this->requestId,getenv('VO_STORAGE_PATH') ?: $this->root.'/api/storage'))->handle($method,$path);
+        if ($path === '/admin/configuracion') (new SettingsAdminController($this->pdo,$this->sessions,$this->csrf,$this->tpl,$this->audit,$this->requestId))->handle($method);
         if ($method === 'GET' && $path === '/admin/') $this->dashboard();
         if ($method === 'POST' && $path === '/admin/logout') $this->logout();
         http_response_code(404); echo 'No encontrado'; exit;
@@ -119,4 +121,5 @@ final class AdminController
     private function isCatalogPath(string $path): bool { return $path === '/admin/catalogo' || str_starts_with($path, '/admin/categorias') || str_starts_with($path, '/admin/productos') || preg_match('#^/admin/producto/\d+(/archivar)?$#', $path) === 1 || preg_match('#^/admin/sucursales/\d+/catalogo$#', $path) === 1; }
     private function isPromotionsPath(string $path): bool { return str_starts_with($path, '/admin/promociones') || str_starts_with($path, '/admin/cupones'); }
     private function isOrdersPath(string $path): bool { return $path === '/admin/pedidos' || preg_match('#^/admin/pedidos/\d+$#', $path) === 1; }
+    private function isPaymentsPath(string $path): bool { return $path === '/admin/pagos' || preg_match('#^/admin/pagos/\d+(/(comprobante|verificar|rechazar))?$#',$path)===1; }
 }

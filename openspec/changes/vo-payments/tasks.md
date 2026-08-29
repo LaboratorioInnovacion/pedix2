@@ -40,13 +40,13 @@ Chain strategy: stacked-to-main
 - [x] B.6 VERIFY Unit B with `MpWebhookHttpTest` and `PaymentServiceTest` focused filters.
 
 ## Unit C: Proofs, admin, settings, public payment UX
-- [ ] C.1 Add `tests/PaymentsAdminHttpTest.php` covering payments R3/R6, admin-shell R1-R3, and protected proof download.
-- [ ] C.2 Implement proof upload endpoint by public order token/admin with `finfo`, jpg/png/pdf allowlist, 5MB max, generated filename under `api/storage/proofs`.
-- [ ] C.3 Update `OrderPageController` and `order_confirmation.php` to show payment badge, MP button, transfer instructions, and upload form.
-- [ ] C.4 Add `PaymentsAdminController` plus Spanish templates for `/admin/pagos`, detail, verify/reject, filters, and proof streaming.
-- [ ] C.5 Add `SettingsRepository`, `/admin/configuracion`, and Spanish settings template for MP token/secret/enabled, transfer instructions, and expiry hours under `settings.manage`.
-- [ ] C.6 Wire admin routing and order detail actions; audit transfer verification/rejection and settings changes.
-- [ ] C.7 VERIFY Unit C with `PaymentsAdminHttpTest`, `OrderConfirmationHttpTest`, and targeted admin smoke filters.
+- [x] C.1 Add `tests/PaymentsAdminHttpTest.php` covering payments R3/R6, admin-shell R1-R3, and protected proof download.
+- [x] C.2 Implement proof upload endpoint by public order token/admin with `finfo`, jpg/png/pdf allowlist, 5MB max, generated filename under `api/storage/proofs`.
+- [x] C.3 Update `OrderPageController` and `order_confirmation.php` to show payment badge, MP button, transfer instructions, and upload form.
+- [x] C.4 Add `PaymentsAdminController` plus Spanish templates for `/admin/pagos`, detail, verify/reject, filters, and proof streaming.
+- [x] C.5 Add `SettingsRepository`, `/admin/configuracion`, and Spanish settings template for MP token/secret/enabled, transfer instructions, and expiry hours under `settings.manage`.
+- [x] C.6 Wire admin routing and order detail actions; audit transfer verification/rejection and settings changes.
+- [x] C.7 VERIFY Unit C with `PaymentsAdminHttpTest`, `OrderConfirmationHttpTest`, and targeted admin smoke filters.
 
 ## Traceability
 - Payments R1-R7: A.1-A.7, B.1-B.6, C.1-C.7.

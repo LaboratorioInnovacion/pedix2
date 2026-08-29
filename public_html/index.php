@@ -19,6 +19,7 @@ use VO\Orders\OrderService;
 use VO\Pricing\PricingRepository;
 use VO\Pricing\PricingService;
 use VO\Payments\MpClient; use VO\Payments\MpWebhookController; use VO\Payments\PaymentRepository; use VO\Payments\PaymentService;
+use VO\Payments\ProofStorage; use VO\Settings\SettingsRepository;
 use VO\Support\Template;
 
 $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
@@ -76,9 +77,11 @@ $cartPage = new CartController(new CartService(new CartRepository($pdo), new Pri
 if ($path === '/carrito') { $cartPage->cart(); return; }
 if ($path === '/checkout' && $method === 'GET') { $cartPage->checkout(); return; }
 if ($path === '/checkout-data' && $method === 'POST') { $cartPage->checkoutData(); return; }
-if ($method !== 'GET') { http_response_code(404); echo 'No encontrado'; return; }
 $conn = new PdoConnection((string)$db['dsn'], (string)($db['user'] ?? ''), (string)($db['password'] ?? ''), [], static fn()=> $pdo);
-if (preg_match('#^/pedido/([a-f0-9]{64})$#', $path, $m)) { (new OrderPageController(new OrderRepository($conn), new Template(dirname(__DIR__) . '/api/app/Orders/templates')))->show($m[1]); return; }
+$paymentRepo=new PaymentRepository($conn); $orderRepo=new OrderRepository($conn); $orderPage=new OrderPageController($orderRepo,new Template(dirname(__DIR__).'/api/app/Orders/templates'),$paymentRepo,new PaymentService($conn,$paymentRepo,$orderRepo,null,$requestId,null,getenv('VO_PUBLIC_BASE_URL')?:''),new SettingsRepository($pdo),new ProofStorage(getenv('VO_STORAGE_PATH')?:dirname(__DIR__).'/api/storage'));
+if ($method==='GET' && preg_match('#^/pedido/([a-f0-9]{64})$#',$path,$m)) { $orderPage->show($m[1]); return; }
+if ($method==='POST' && preg_match('#^/pedido/([a-f0-9]{64})/comprobante$#',$path,$m)) { $orderPage->uploadProof($m[1],$_FILES['proof']??[]); return; }
+if ($method !== 'GET') { http_response_code(404); echo 'No encontrado'; return; }
 $controller = new PublicCatalogController($pdo, new Template(dirname(__DIR__) . '/api/app/Catalog/templates'));
 if ($path === '/') { $controller->home(); return; }
 if ($path === '/buscar') { $controller->search((string)($_GET['q'] ?? '')); return; }
