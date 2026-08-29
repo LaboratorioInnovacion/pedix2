@@ -11,8 +11,8 @@ final class InstallerSeederTest extends TestCase
             (new MigrationRunner($scratch->connection(), dirname(__DIR__) . '/api/database/migrations'))->run();
             $result = (new InstallerSeeder($scratch->connection()))->seed($this->input());
             $pdo = $scratch->pdo;
-            $this->assertSame(16, (int) $pdo->query("SELECT COUNT(*) FROM permissions")->fetchColumn());
-            $this->assertSame(16, (int) $pdo->query("SELECT COUNT(*) FROM role_permissions rp JOIN roles r ON r.id=rp.role_id WHERE r.name='owner'")->fetchColumn());
+            $this->assertSame(17, (int) $pdo->query("SELECT COUNT(*) FROM permissions")->fetchColumn());
+            $this->assertSame(17, (int) $pdo->query("SELECT COUNT(*) FROM role_permissions rp JOIN roles r ON r.id=rp.role_id WHERE r.name='owner'")->fetchColumn());
             $user = $pdo->query("SELECT password_hash FROM users WHERE email='owner@example.test'")->fetch();
             $this->assertTrue(password_verify('change-me-now', $user['password_hash']));
             $this->assertTrue(!str_contains($user['password_hash'], 'change-me-now'), 'Plain password must not be stored.');

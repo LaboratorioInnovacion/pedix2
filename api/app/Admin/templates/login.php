@@ -1,0 +1,3 @@
+<?php use VO\Support\Template; ob_start(); ?>
+<section class="card login"><p class="eyebrow">Vender Online</p><h1>Ingresar al panel</h1><p class="muted">Usá tu email administrador para acceder.</p><?php if (!empty($error)): ?><p class="error"><?= Template::e($error) ?></p><?php endif; ?><form method="post" action="/admin/login"><input type="hidden" name="csrf" value="<?= Template::e($csrf) ?>"><label>Email<input name="email" type="email" autocomplete="username" required></label><label>Contraseña<input name="password" type="password" autocomplete="current-password" required></label><button class="btn">Ingresar</button></form></section>
+<?php $content = ob_get_clean(); $title = 'Ingresar al panel'; require __DIR__ . '/layout.php'; ?>

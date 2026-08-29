@@ -37,12 +37,12 @@ Commit boundary: `feat(installer): add baseline schema and seed foundation`.
 
 ## Unit B: wizard + session/CSRF + HTTP tests + lock
 
-- [ ] B.1 Modify `tools/run-tests.php` for HTTP server helpers, random-port lifecycle, scratch config/storage/DB env, cookie isolation, and Windows child cleanup.
-- [ ] B.2 Create `tests/InstallerHttpTest.php` RED coverage for wizard order, requirement block, bad DB sanitization, missing CSRF, success lock-last, partial failure rerun, installed lock before DB, and deferred feature absence.
-- [ ] B.3 Create `api/app/Installer/InstallerSession.php`, `RequirementsChecker.php`, and `Template.php` for secure session flags, CSRF `hash_equals`, requirements checks, escaping, and secret clearing.
-- [ ] B.4 Create `api/app/Installer/InstallerController.php` to orchestrate steps, validate initial data, call Unit A migrations/seeder/config writer, sanitize errors, and clear secrets.
-- [ ] B.5 Create `public_html/install/index.php`, `public_html/install/assets/install.css`, and templates `requirements.php`, `database.php`, `details.php`, `review.php`, `done.php`, `locked.php`, `error.php`.
-- [ ] B.6 Verify Unit B with `D:\xampp\php\php.exe tools/run-tests.php --filter InstallerHttpTest`, then full `D:\xampp\php\php.exe tools/run-tests.php`; acceptance: all web-installer scenarios and remaining testing-bootstrap ADDED scenarios pass.
+- [x] B.1 Modify `tools/run-tests.php` for HTTP server helpers, random-port lifecycle, scratch config/storage/DB env, cookie isolation, and Windows child cleanup.
+- [x] B.2 Create `tests/InstallerHttpTest.php` RED coverage for wizard order, requirement block, bad DB sanitization, missing CSRF, success lock-last, partial failure rerun, installed lock before DB, and deferred feature absence.
+- [x] B.3 Create `api/app/Installer/InstallerSession.php`, `RequirementsChecker.php`, and `Template.php` for secure session flags, CSRF `hash_equals`, requirements checks, escaping, and secret clearing.
+- [x] B.4 Create `api/app/Installer/InstallerController.php` to orchestrate steps, validate initial data, call Unit A migrations/seeder/config writer, sanitize errors, and clear secrets.
+- [x] B.5 Create `public_html/install/index.php`, `public_html/install/assets/install.css`, and templates `requirements.php`, `database.php`, `details.php`, `review.php`, `done.php`, `locked.php`, `error.php`.
+- [x] B.6 Verify Unit B with `D:\xampp\php\php.exe tools/run-tests.php --filter InstallerHttpTest`, then full `D:\xampp\php\php.exe tools/run-tests.php`; acceptance: all web-installer scenarios and remaining testing-bootstrap ADDED scenarios pass.
 
 Commit boundary: `feat(installer): add locked web installer wizard`.
 

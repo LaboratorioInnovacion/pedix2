@@ -1,0 +1,5 @@
+<?php use VO\Support\Template; ob_start(); ?>
+<h1>Cupones</h1><?php foreach ($errors as $e): ?><p class="error"><?= Template::e($e) ?></p><?php endforeach; ?>
+<form method="post" action="/admin/cupones" class="card"><input type="hidden" name="csrf" value="<?= Template::e($csrf) ?>"><label>Código <input name="code"></label><label>Descuento en puntos básicos <input name="discount_basis_points"></label><label>Monto mínimo en centavos <input name="min_amount_cents"></label><label>Inicio <input name="starts_at" placeholder="YYYY-MM-DD HH:MM:SS"></label><label>Fin <input name="ends_at" placeholder="YYYY-MM-DD HH:MM:SS"></label><label>Límite de uso <input name="usage_limit"></label><button class="btn">Guardar cupón</button></form>
+<section class="card"><h2>Listado</h2><?php foreach ($coupons as $c): ?><p><a href="/admin/cupones/<?= (int)$c['id'] ?>"><?= Template::e($c['code']) ?></a> <span class="muted">Usos actuales: <?= (int)$c['times_used'] ?></span></p><?php endforeach; ?></section>
+<?php $content = ob_get_clean(); $title = 'Cupones'; require __DIR__ . '/layout.php'; ?>

@@ -1,0 +1,1 @@
+<?php use VO\Installer\Template; ob_start(); ?><h1>No pudimos procesar la solicitud</h1><p class="error"><?= Template::e($message ?? 'Ocurrió un error.') ?></p><?php $content=ob_get_clean(); require __DIR__.'/layout.php'; ?>
