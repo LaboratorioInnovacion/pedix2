@@ -8,11 +8,15 @@ use VO\Cart\CartController;
 use VO\Cart\CartRepository;
 use VO\Cart\CartService;
 use VO\Database\PdoConnection;
+use VO\Delivery\DeliveryRepository;
+use VO\Delivery\DeliveryService;
 use VO\Domain\DbIdempotencyStore;
 use VO\Http\Request;
 use VO\Http\RequestIdMiddleware;
 use VO\Http\Router;
 use VO\Http\SecurityHeadersMiddleware;
+use VO\Inventory\StockService;
+use VO\Orders\OrderOperationsService;
 use VO\Orders\OrderPageController;
 use VO\Orders\OrderRepository;
 use VO\Orders\OrderService;
@@ -47,7 +51,7 @@ if (str_starts_with($path, '/api/cart')) {
     if (!is_array($db) || empty($db['dsn'])) { http_response_code(503); echo json_encode(['ok'=>false,'error'=>['code'=>'config','message'=>'Configuration unavailable.']]); return; }
     $pdo = new PDO((string)$db['dsn'], (string)($db['user'] ?? ''), (string)($db['password'] ?? ''), [PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC, PDO::ATTR_EMULATE_PREPARES=>false]);
     $conn = new PdoConnection((string)$db['dsn'], (string)($db['user'] ?? ''), (string)($db['password'] ?? ''), [], static fn()=> $pdo); $pricing = new PricingService(new PricingRepository($pdo));
-    $controller = new CartApiController(new CartService(new CartRepository($pdo), $pricing), new OrderService($conn, new OrderRepository($conn), new DbIdempotencyStore($conn), $pricing));
+    $controller = new CartApiController(new CartService(new CartRepository($pdo), $pricing, new DeliveryRepository($conn)), new OrderService($conn, new OrderRepository($conn), new DbIdempotencyStore($conn), $pricing));
     $router = new Router();
     $router->get('/api/cart', [$controller,'get']); $router->get('/api/cart/preview', [$controller,'preview']);
     $router->post('/api/cart/items', [$controller,'add']); $router->patch('/api/cart/items/{id}', [$controller,'qty']); $router->delete('/api/cart/items/{id}', [$controller,'delete']);
@@ -60,7 +64,7 @@ if ($path === '/api/webhooks/mercadopago') {
     $pdo = new PDO((string)$db['dsn'], (string)($db['user'] ?? ''), (string)($db['password'] ?? ''), [PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC, PDO::ATTR_EMULATE_PREPARES=>false]);
     $conn = new PdoConnection((string)$db['dsn'], (string)($db['user'] ?? ''), (string)($db['password'] ?? ''), [], static fn()=> $pdo); $repo = new PaymentRepository($conn);
     $token = $repo->setting($repo->firstBusinessId(), 'mp_access_token') ?? ''; $mp = new MpClient(getenv('VO_MP_BASE_URL') ?: 'https://api.mercadopago.com', $token);
-    $res = (new MpWebhookController(new PaymentService($conn, $repo, new OrderRepository($conn), null, Request::newRequestId(), $mp, getenv('VO_PUBLIC_BASE_URL') ?: '')))->handle(Request::fromGlobals()); $res->send(); return;
+    $res = (new MpWebhookController(new PaymentService($conn, $repo, new OrderRepository($conn), null, Request::newRequestId(), $mp, getenv('VO_PUBLIC_BASE_URL') ?: '', \VO\Notifications\NotificationTransportFactory::service($pdo, $repo->firstBusinessId()))))->handle(Request::fromGlobals()); $res->send(); return;
 }
 
 $requestId = Request::newRequestId();
@@ -73,12 +77,15 @@ if (!headers_sent()) {
 if (!in_array($method, ['GET','POST'], true)) { http_response_code(404); echo 'No encontrado'; return; }
 if (!is_array($db) || empty($db['dsn'])) { http_response_code(503); echo 'Configuración no disponible.'; return; }
 $pdo = new PDO((string)$db['dsn'], (string)($db['user'] ?? ''), (string)($db['password'] ?? ''), [PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC, PDO::ATTR_EMULATE_PREPARES=>false]);
-$cartPage = new CartController(new CartService(new CartRepository($pdo), new PricingService(new PricingRepository($pdo))), $pdo, new Template(dirname(__DIR__) . '/api/app/Cart/templates'));
+$cartPage = new CartController(new CartService(new CartRepository($pdo), new PricingService(new PricingRepository($pdo)), new DeliveryRepository(new PdoConnection((string)$db['dsn'], (string)($db['user'] ?? ''), (string)($db['password'] ?? ''), [], static fn()=> $pdo))), $pdo, new Template(dirname(__DIR__) . '/api/app/Cart/templates'));
 if ($path === '/carrito') { $cartPage->cart(); return; }
 if ($path === '/checkout' && $method === 'GET') { $cartPage->checkout(); return; }
 if ($path === '/checkout-data' && $method === 'POST') { $cartPage->checkoutData(); return; }
 $conn = new PdoConnection((string)$db['dsn'], (string)($db['user'] ?? ''), (string)($db['password'] ?? ''), [], static fn()=> $pdo);
-$paymentRepo=new PaymentRepository($conn); $orderRepo=new OrderRepository($conn); $orderPage=new OrderPageController($orderRepo,new Template(dirname(__DIR__).'/api/app/Orders/templates'),$paymentRepo,new PaymentService($conn,$paymentRepo,$orderRepo,null,$requestId,null,getenv('VO_PUBLIC_BASE_URL')?:''),new SettingsRepository($pdo),new ProofStorage(getenv('VO_STORAGE_PATH')?:dirname(__DIR__).'/api/storage'));
+$paymentRepo=new PaymentRepository($conn); $orderRepo=new OrderRepository($conn);
+$notifications = \VO\Notifications\NotificationTransportFactory::service($pdo, $paymentRepo->firstBusinessId());
+$publicPaymentService=new PaymentService($conn,$paymentRepo,$orderRepo,new \VO\Audit\AuditService($pdo),$requestId,null,getenv('VO_PUBLIC_BASE_URL')?:'',$notifications);
+$orderPage=new OrderPageController($orderRepo,new Template(dirname(__DIR__).'/api/app/Orders/templates'),$paymentRepo,$publicPaymentService,new SettingsRepository($pdo),new ProofStorage(getenv('VO_STORAGE_PATH')?:dirname(__DIR__).'/api/storage'),new OrderOperationsService($conn,$orderRepo,new StockService($conn),$paymentRepo,$publicPaymentService,new \VO\Audit\AuditService($pdo),$requestId,null,$notifications),new DeliveryService($conn,new DeliveryRepository($conn),new \VO\Audit\AuditService($pdo),$requestId,$notifications),$notifications);
 if ($method==='GET' && preg_match('#^/pedido/([a-f0-9]{64})$#',$path,$m)) { $orderPage->show($m[1]); return; }
 if ($method==='POST' && preg_match('#^/pedido/([a-f0-9]{64})/comprobante$#',$path,$m)) { $orderPage->uploadProof($m[1],$_FILES['proof']??[]); return; }
 if ($method !== 'GET') { http_response_code(404); echo 'No encontrado'; return; }

@@ -9,14 +9,14 @@ final class BaselineSchemaTest extends TestCase
         $scratch = ScratchDatabase::create(); if ($scratch === null) return;
         try {
             $runner = new MigrationRunner($scratch->connection(), dirname(__DIR__) . '/api/database/migrations');
-            $this->assertSame(['001 create_baseline', '002 create_auth_runtime', '003 create_catalog', '004 create_pricing_promotions', '005 create_cart', '006 create_orders', '007 create_payments'], $runner->run());
+            $this->assertSame(['001 create_baseline', '002 create_auth_runtime', '003 create_catalog', '004 create_pricing_promotions', '005 create_cart', '006 create_orders', '007 create_payments', '008 operations', '009 delivery', '010 notifications'], $runner->run());
             $this->assertSame([], $runner->run());
             $tables = $scratch->tables(); sort($tables);
-            $expected = ['audit_log','auth_sessions','branches','branch_settings','branch_items','branch_variants','businesses','business_settings','cart_item_modifiers','cart_items','carts','catalog_items','categories','coupons','customers','idempotency_keys','item_images','item_modifier_group','item_variants','login_attempts','modifier_groups','modifiers','order_addresses','order_counters','order_discounts','order_item_modifiers','order_items','orders','payment_events','payments','permissions','promotion_rules','promotion_usage','promotions','roles','role_permissions','schema_migrations','stock_movements','users','user_branches','user_roles']; sort($expected);
+            $expected = ['audit_log','auth_sessions','branches','branch_settings','branch_items','branch_variants','businesses','business_settings','cart_item_modifiers','cart_items','carts','catalog_items','categories','coupons','customers','delivery_person_branches','delivery_persons','delivery_zones','deliveries','idempotency_keys','item_images','item_modifier_group','item_variants','login_attempts','modifier_groups','modifiers','notification_events','order_addresses','order_counters','order_discounts','order_item_modifiers','order_items','orders','payment_events','payments','permissions','promotion_rules','promotion_usage','promotions','roles','role_permissions','schema_migrations','stock_movements','users','user_branches','user_roles']; sort($expected);
             $this->assertSame($expected, $tables);
             $version = $scratch->pdo->query('SELECT version FROM schema_migrations')->fetchColumn();
             $this->assertSame('001', $version);
-            foreach (['deliveries','catalog','sessions','modules','backups','workers'] as $deferred) $this->assertTrue(!in_array($deferred, $tables, true), $deferred . ' must be absent.');
+            foreach (['catalog','sessions','modules','backups','workers'] as $deferred) $this->assertTrue(!in_array($deferred, $tables, true), $deferred . ' must be absent.');
         } finally { $scratch->drop(); }
     }
 

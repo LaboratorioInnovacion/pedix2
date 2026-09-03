@@ -38,7 +38,7 @@ final class OrderRepository
 
     public function insertOrder(array $o, array $items, array $quote, ?array $address): array
     {
-        $cols = ['business_id','branch_id','customer_id','number','status','public_token','cart_token_hash','fulfillment','payment_method','customer_name','customer_email','customer_phone','customer_note','gross_items_cents','item_promotions_cents','order_promotions_cents','coupon_discount_cents','payment_discount_cents','merchandise_total_cents','delivery_fee_cents','grand_total_cents','coupon_code','confirmed_at'];
+        $cols = ['business_id','branch_id','customer_id','number','status','public_token','cart_token_hash','fulfillment','payment_method','customer_name','customer_email','customer_phone','customer_note','gross_items_cents','item_promotions_cents','order_promotions_cents','coupon_discount_cents','payment_discount_cents','merchandise_total_cents','delivery_fee_cents','grand_total_cents','delivery_zone_name','delivery_payout_cents','coupon_code','confirmed_at'];
         $this->db->execute('INSERT INTO orders (' . implode(',', $cols) . ') VALUES (' . rtrim(str_repeat('?,', count($cols)), ',') . ')', array_map(fn($c) => $o[$c] ?? null, $cols));
         $orderId = (int)$this->one('SELECT LAST_INSERT_ID() id')['id'];
         $discount = max(0, (int)$quote['gross_items_cents'] - (int)$quote['merchandise_total_cents']); $remaining = $discount;
@@ -66,5 +66,26 @@ final class OrderRepository
     public function findByNumber(int $businessId, string $number): ?array { return $this->one('SELECT * FROM orders WHERE business_id=? AND number=? LIMIT 1', [$businessId, $number]); }
     public function markStatus(int $orderId, string $to): array { $o=$this->getById($orderId) ?? []; $status=OrderStateMap::create()->transition((string)$o['status'], $to); $this->db->execute('UPDATE orders SET status=? WHERE id=?', [$status,$orderId]); return $this->getById($orderId) ?? []; }
     public function markAcceptedIfPending(int $orderId): array { $this->db->execute("UPDATE orders SET status='accepted' WHERE id=? AND status='pending'", [$orderId]); return $this->getById($orderId) ?? []; }
+
+    public function lockById(int $orderId): ?array { return $this->one('SELECT * FROM orders WHERE id=? LIMIT 1 FOR UPDATE', [$orderId]); }
+
+    /** Pending/change_proposed orders older than the given TTL (optionally scoped to one business). */
+    public function findStaleForExpiry(int $hours, ?int $businessId = null): array
+    {
+        $sql = "SELECT * FROM orders WHERE status IN ('pending','change_proposed') AND created_at <= DATE_SUB(NOW(), INTERVAL ? HOUR)";
+        $params = [$hours];
+        if ($businessId !== null) { $sql .= ' AND business_id=?'; $params[] = $businessId; }
+        return $this->db->select($sql, $params);
+    }
+
+    /** Operations board rows scoped to the operator's branches, open statuses only. */
+    public function boardRows(int $userId, ?int $branchId = null): array
+    {
+        $sql = "SELECT o.id,o.number,o.status,o.branch_id,o.grand_total_cents,o.created_at,b.name branch_name,(SELECT COUNT(*) FROM order_items oi WHERE oi.order_id=o.id) item_count FROM orders o INNER JOIN branches b ON b.id=o.branch_id INNER JOIN user_branches ub ON ub.branch_id=o.branch_id WHERE ub.user_id=? AND o.status IN ('pending','change_proposed','accepted','in_progress','ready')";
+        $params = [$userId];
+        if ($branchId !== null) { $sql .= ' AND o.branch_id=?'; $params[] = $branchId; }
+        return $this->db->select($sql . ' ORDER BY o.created_at ASC, o.id ASC', $params);
+    }
+
     private function one(string $sql, array $p=[]): ?array { $r=$this->db->select($sql,$p); return $r[0] ?? null; }
 }

@@ -1,7 +1,7 @@
 <?php declare(strict_types=1);
 namespace VO\Orders;
 
-use DomainException; use InvalidArgumentException; use VO\Database\Connection; use VO\Domain\DbIdempotencyStore; use VO\Inventory\StockService; use VO\Pricing\PricingService;
+use DomainException; use InvalidArgumentException; use VO\Database\Connection; use VO\Domain\DbIdempotencyStore; use VO\Inventory\StockService; use VO\Notifications\NotificationService; use VO\Pricing\PricingService;
 
 final class PriceChangedException extends DomainException { public function __construct(public array $current) { parent::__construct('PRICE_CHANGED'); } }
 final class EmptyCartException extends DomainException {}
@@ -10,7 +10,7 @@ final class OrderService
 {
     public const TOTAL_KEYS = ['gross_items_cents','item_promotions_cents','order_promotions_cents','coupon_discount_cents','payment_discount_cents','merchandise_total_cents','delivery_fee_cents','grand_total_cents'];
     private StockService $stock;
-    public function __construct(private Connection $db, private OrderRepository $orders, private DbIdempotencyStore $idempotency, private PricingService $pricing, ?StockService $stock = null) { $this->stock = $stock ?? new StockService($db); }
+    public function __construct(private Connection $db, private OrderRepository $orders, private DbIdempotencyStore $idempotency, private PricingService $pricing, ?StockService $stock = null, private ?NotificationService $notifications = null) { $this->stock = $stock ?? new StockService($db); }
 
     public function createFromCart(string $cartTokenHash, string $idempotencyKey, array $acceptedTotals, ?array $customerInput = null): array
     {
@@ -25,9 +25,12 @@ final class OrderService
             $customer = $this->resolveCustomer($businessId, $customerInput ?? []); $address = $cart['address_json'] ? json_decode((string)$cart['address_json'], true) : null;
             $contact = ['name'=>$customer['name'] ?? $customerInput['name'] ?? $address['recipient_name'] ?? null, 'email'=>$customer['email'] ?? $customerInput['email'] ?? null, 'phone'=>$customer['phone'] ?? $customerInput['phone'] ?? $address['phone'] ?? null];
             $this->stock->assertAvailable((int)$cart['branch_id'], $items);
+            $delivery = $cart['fulfillment']==='delivery' ? $this->deliverySnapshot($cart) : ['delivery_zone_name'=>null,'delivery_payout_cents'=>0];
             $order = $this->orders->insertOrder([
                 'business_id'=>$businessId,'branch_id'=>(int)$cart['branch_id'],'customer_id'=>$customer['id'] ?? null,'number'=>$this->orders->nextOrderNumber($businessId),'status'=>'pending','public_token'=>bin2hex(random_bytes(32)),'cart_token_hash'=>$cartTokenHash,'fulfillment'=>$cart['fulfillment'],'payment_method'=>$cart['payment_method'],'customer_name'=>$contact['name'],'customer_email'=>$contact['email'],'customer_phone'=>$contact['phone'],'customer_note'=>$cart['customer_note'],'coupon_code'=>$cart['coupon_code'],'confirmed_at'=>date('Y-m-d H:i:s')
-            ] + array_intersect_key($quote, array_flip(self::TOTAL_KEYS)), $items, $quote, $cart['fulfillment']==='delivery' ? $address : null);
+            ] + array_intersect_key($quote, array_flip(self::TOTAL_KEYS)) + $delivery, $items, $quote, $cart['fulfillment']==='delivery' ? $address : null);
+            if ($cart['fulfillment']==='delivery') $this->db->execute("INSERT INTO deliveries (order_id,state) VALUES (?,'pending')", [(int)$order['id']]);
+            $this->notifications?->enqueueForOrder('order.created', $order); // outbox row joins this transaction
             $this->stock->reserve($businessId, (int)$cart['branch_id'], (int)$order['id'], $items);
             $this->orders->persistUsage($businessId, (int)$order['id'], $quote);
             $this->orders->clearCartItems((int)$cart['id']);
@@ -37,12 +40,25 @@ final class OrderService
 
     private function quoteRequest(array $cart, array $items, array $accepted): array
     {
-        return ['branch_id'=>(int)$cart['branch_id'],'fulfillment'=>$cart['fulfillment'],'coupon_code'=>$cart['coupon_code'] ?? '','payment_method'=>$cart['payment_method'] ?? '','delivery_fee_cents'=>$accepted['delivery_fee_cents'] ?? 0,'items'=>array_map(fn($r)=>['item_id'=>(int)$r['item_id'],'variant_id'=>$r['variant_id']===null?null:(int)$r['variant_id'],'quantity'=>(int)$r['qty'],'modifier_ids'=>array_map(fn($m)=>(int)$m['modifier_id'], $r['modifiers'])], $items)] + $accepted;
+        // The delivery fee is server-owned: it always comes from the cart row
+        // (resolved at checkout-data); any client-passed value is ignored.
+        $fee = $cart['fulfillment']==='delivery' ? (int)($cart['delivery_fee_cents'] ?? 0) : 0;
+        return ['branch_id'=>(int)$cart['branch_id'],'fulfillment'=>$cart['fulfillment'],'coupon_code'=>$cart['coupon_code'] ?? '','payment_method'=>$cart['payment_method'] ?? '','delivery_fee_cents'=>$fee,'items'=>array_map(fn($r)=>['item_id'=>(int)$r['item_id'],'variant_id'=>$r['variant_id']===null?null:(int)$r['variant_id'],'quantity'=>(int)$r['qty'],'modifier_ids'=>array_map(fn($m)=>(int)$m['modifier_id'], $r['modifiers'])], $items)] + $accepted;
+    }
+
+    /** Zone name + payout snapshotted onto the order from the cart-resolved zone. */
+    private function deliverySnapshot(array $cart): array
+    {
+        $zoneId = (int)($cart['delivery_zone_id'] ?? 0); $payout = (int)($cart['delivery_payout_cents'] ?? 0);
+        $name = $zoneId > 0 ? ($this->db->select('SELECT name FROM delivery_zones WHERE id=? LIMIT 1', [$zoneId])[0]['name'] ?? null) : null;
+        return ['delivery_zone_name'=>$name,'delivery_payout_cents'=>$payout];
     }
 
     private function changed(array $accepted, array $quote): bool
     {
-        foreach (self::TOTAL_KEYS as $k) if (array_key_exists($k, $accepted) && (int)$accepted[$k] !== (int)$quote[$k]) return true;
+        foreach (self::TOTAL_KEYS as $k) { if ($k === 'delivery_fee_cents') continue; // server-forced from the cart row; client value never decides acceptance
+            if (array_key_exists($k, $accepted) && (int)$accepted[$k] !== (int)$quote[$k]) return true;
+        }
         if (isset($accepted['accepted_grand_total_cents']) && (int)$accepted['accepted_grand_total_cents'] !== (int)$quote['grand_total_cents']) return true;
         foreach (($accepted['accepted_lines'] ?? []) as $i => $l) if (isset($l['line_total_cents'], $quote['lines'][$i]) && (int)$l['line_total_cents'] !== (int)$quote['lines'][$i]['line_total_cents']) return true;
         return false;

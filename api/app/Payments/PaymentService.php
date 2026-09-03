@@ -1,13 +1,13 @@
 <?php declare(strict_types=1);
 namespace VO\Payments;
 
-use DomainException; use VO\Audit\AuditService; use VO\Database\Connection; use VO\Domain\InvalidTransition; use VO\Orders\OrderRepository;
+use DomainException; use VO\Audit\AuditService; use VO\Database\Connection; use VO\Domain\InvalidTransition; use VO\Inventory\StockService; use VO\Notifications\NotificationService; use VO\Orders\OrderOperationsService; use VO\Orders\OrderRepository;
 
 final class PaymentService
 {
     private const DEFAULT_EXPIRY_HOURS = 48;
 
-    public function __construct(private Connection $db, private PaymentRepository $payments, private OrderRepository $orders, private ?AuditService $audit = null, private ?string $requestId = null, private ?MpClient $mp = null, private ?string $publicBaseUrl = null) {}
+    public function __construct(private Connection $db, private PaymentRepository $payments, private OrderRepository $orders, private ?AuditService $audit = null, private ?string $requestId = null, private ?MpClient $mp = null, private ?string $publicBaseUrl = null, private ?NotificationService $notifications = null) {}
 
     public function initiateForOrder(int $orderId, string $method): array
     {
@@ -105,6 +105,12 @@ final class PaymentService
         return $this->transition($paymentId, 'cancelled', [], ['actor_id'=>$actorId,'reason'=>$reason]);
     }
 
+    /** Cancel inside a caller-owned transaction (order gateway/sweep hold it); never opens one itself. */
+    public function cancelPaymentWithinTransaction(int $paymentId, ?int $actorId = null, string $reason = 'cancelled'): array
+    {
+        return $this->transitionWithinTransaction($paymentId, 'cancelled', [], ['actor_id'=>$actorId,'reason'=>$reason]);
+    }
+
     public function expireStaleLazy(int $hours = self::DEFAULT_EXPIRY_HOURS): int
     {
         $count = 0;
@@ -114,9 +120,13 @@ final class PaymentService
 
     public function autoAcceptOrder(int $orderId): array
     {
-        $order = $this->orders->getById($orderId); if (!$order) throw new DomainException('ORDER_NOT_FOUND');
-        if ((string)$order['status'] !== 'pending') return $order;
-        return $this->orders->markAcceptedIfPending($orderId);
+        return $this->operations()->acceptFromPayment($orderId);
+    }
+
+    /** Built lazily to avoid a constructor cycle: the gateway also takes a PaymentService. */
+    private function operations(): OrderOperationsService
+    {
+        return new OrderOperationsService($this->db, $this->orders, new StockService($this->db), $this->payments, $this, $this->audit, $this->requestId, null, $this->notifications);
     }
 
     private function preferencePayload(array $order, array $payment, string $external): array
@@ -176,6 +186,10 @@ final class PaymentService
         $eventType = 'payment.' . $to;
         $this->payments->insertEvent($paymentId, $eventType, ['from'=>$from,'to'=>$to] + $meta);
         $this->audit?->append(['type'=>'user','id'=>$meta['actor_id'] ?? null], $eventType, 'payment:' . $paymentId, ['order_id'=>(int)$payment['order_id'],'from'=>$from,'to'=>$to] + $meta, $this->requestId);
+        if ($this->notifications !== null && in_array($to, ['verified', 'approved', 'rejected'], true)) { // cancelled → none (spec N2)
+            $orderRow = $this->orders->getById((int)$payment['order_id']); // same transaction
+            if ($orderRow !== null) $this->notifications->enqueueForOrder($eventType, $orderRow);
+        }
         if (in_array($state, ['verified','approved'], true)) $this->autoAcceptOrder((int)$payment['order_id']);
         return $updated;
     }

@@ -2,11 +2,15 @@
 namespace VO\Admin;
 
 use PDO;
+use Throwable;
 use VO\Audit\AuditService;
 use VO\Auth\AuthSession;
 use VO\Auth\CsrfService;
 use VO\Auth\LoginService;
 use VO\Http\Request;
+use VO\Database\PdoConnection;
+use VO\Notifications\NotificationTransportFactory;
+use VO\Reports\ReportsRepository;
 use VO\Support\Template;
 
 final class AdminController
@@ -45,8 +49,12 @@ final class AdminController
         if ($this->isCatalogPath($path)) (new CatalogAdminController($this->pdo, $this->sessions, $this->csrf, $this->tpl, $this->audit, $this->requestId))->handle($method, $path);
         if ($this->isPromotionsPath($path)) (new PromotionsAdminController($this->pdo, $this->sessions, $this->csrf, $this->tpl, $this->audit, $this->requestId))->handle($method, $path);
         if ($this->isOrdersPath($path)) (new OrdersAdminController($this->pdo, $this->sessions, $this->csrf, $this->tpl, $this->audit, $this->requestId))->handle($method, $path);
+        if ($this->isOperationsPath($path)) (new OperationsAdminController($this->pdo, $this->sessions, $this->csrf, $this->tpl, $this->audit, $this->requestId))->handle($method, $path);
+        if ($this->isDeliveryPath($path)) (new DeliveryAdminController($this->pdo, $this->sessions, $this->csrf, $this->tpl, $this->audit, $this->requestId))->handle($method, $path);
         if ($this->isPaymentsPath($path)) (new PaymentsAdminController($this->pdo,$this->sessions,$this->csrf,$this->tpl,$this->audit,$this->requestId,getenv('VO_STORAGE_PATH') ?: $this->root.'/api/storage'))->handle($method,$path);
         if ($path === '/admin/configuracion') (new SettingsAdminController($this->pdo,$this->sessions,$this->csrf,$this->tpl,$this->audit,$this->requestId))->handle($method);
+        if ($path === '/admin/notificaciones') (new NotificationsAdminController($this->pdo,$this->sessions,$this->csrf,$this->tpl,$this->audit,$this->requestId))->handle($method);
+        if ($this->isReportsPath($path)) (new ReportsAdminController($this->pdo, $this->sessions, $this->csrf, $this->tpl, $this->audit, $this->requestId))->handle($method, $path);
         if ($method === 'GET' && $path === '/admin/') $this->dashboard();
         if ($method === 'POST' && $path === '/admin/logout') $this->logout();
         http_response_code(404); echo 'No encontrado'; exit;
@@ -74,7 +82,9 @@ final class AdminController
     {
         $user = $this->currentUser();
         if ($user === null) $this->redirect('/admin/login');
-        echo $this->tpl->render('dashboard', ['csrf' => $this->csrf(), 'user' => $user]);
+        try { NotificationTransportFactory::service($this->pdo, (int)$user['business_id'])->dispatchPendingLazy((int)$user['business_id']); } catch (Throwable) { /* notification sweep is best-effort (spec N3) */ }
+        $metrics = (new ReportsRepository(new PdoConnection('', factory: fn () => $this->pdo)))->dashboard((int)$user['id']);
+        echo $this->tpl->render('dashboard', ['csrf' => $this->csrf(), 'user' => $user, 'metrics' => $metrics]);
         exit;
     }
 
@@ -94,7 +104,7 @@ final class AdminController
     {
         $sid = $_SESSION['auth_sid'] ?? null;
         if (!is_string($sid) || $this->sessions->validate($sid) === null) return null;
-        $stmt = $this->pdo->prepare('SELECT u.id, u.name, u.email, b.name business_name FROM users u INNER JOIN businesses b ON b.id = u.business_id WHERE u.id = (SELECT user_id FROM auth_sessions WHERE sid_hash = ? LIMIT 1) LIMIT 1');
+        $stmt = $this->pdo->prepare('SELECT u.id, u.business_id, u.name, u.email, b.name business_name FROM users u INNER JOIN businesses b ON b.id = u.business_id WHERE u.id = (SELECT user_id FROM auth_sessions WHERE sid_hash = ? LIMIT 1) LIMIT 1');
         $stmt->execute([AuthSession::hash($sid)]);
         return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
     }
@@ -121,5 +131,8 @@ final class AdminController
     private function isCatalogPath(string $path): bool { return $path === '/admin/catalogo' || str_starts_with($path, '/admin/categorias') || str_starts_with($path, '/admin/productos') || preg_match('#^/admin/producto/\d+(/archivar)?$#', $path) === 1 || preg_match('#^/admin/sucursales/\d+/catalogo$#', $path) === 1; }
     private function isPromotionsPath(string $path): bool { return str_starts_with($path, '/admin/promociones') || str_starts_with($path, '/admin/cupones'); }
     private function isOrdersPath(string $path): bool { return $path === '/admin/pedidos' || preg_match('#^/admin/pedidos/\d+$#', $path) === 1; }
+    private function isOperationsPath(string $path): bool { return $path === '/admin/operacion' || preg_match('#^/admin/operacion/\d+/(aceptar|rechazar|preparar|listo|completar|cancelar|asignar|reasignar|retirar|entregar|fallar)$#', $path) === 1; }
+    private function isDeliveryPath(string $path): bool { return $path === '/admin/delivery' || str_starts_with($path, '/admin/delivery/'); }
     private function isPaymentsPath(string $path): bool { return $path === '/admin/pagos' || preg_match('#^/admin/pagos/\d+(/(comprobante|verificar|rechazar))?$#',$path)===1; }
+    private function isReportsPath(string $path): bool { return $path === '/admin/reportes' || $path === '/admin/reportes/csv'; }
 }

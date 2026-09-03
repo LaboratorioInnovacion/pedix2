@@ -82,9 +82,10 @@ final class PermissionGuardTest extends TestCase
         $pdo->exec("INSERT INTO branches (id,business_id,name) VALUES (1,1,'Main')");
         $pdo->exec("INSERT INTO users (id,business_id,name,email,password_hash,is_active) VALUES (2,1,'Limited','limited@example.test','x',1),(3,1,'Global','global@example.test','x',1)");
         foreach (['owner' => 1, 'limited' => 2, 'global' => 3] as $role => $id) $pdo->exec("INSERT INTO roles (id,name,label,is_system) VALUES ($id,'$role','$role',1)");
-        // Migration 003 seeds products.manage at migration time; clear it so the
-        // explicit-id fixture below starts from an empty permissions table.
-        $pdo->exec("DELETE FROM permissions WHERE permission_key='products.manage'");
+        // Migrations seed permissions too (003: products.manage, 009: deliveries.manage);
+        // clear ALL of them so the explicit-id fixture below starts from an empty table.
+        $pdo->exec('DELETE FROM role_permissions');
+        $pdo->exec('DELETE FROM permissions');
         $permissions = ['orders.view','orders.accept','orders.reject','orders.modify','orders.prepare','orders.mark_ready','orders.cancel','products.edit_price','products.change_availability','products.manage_stock','deliveries.assign','deliveries.reassign','payments.verify_transfer','settings.manage','users.manage','reports.view'];
         foreach ($permissions as $i => $key) $pdo->prepare('INSERT INTO permissions (id,permission_key,label) VALUES (?,?,?)')->execute([$i + 1, $key, $key]);
         foreach (range(1, 16) as $permissionId) $pdo->prepare('INSERT INTO role_permissions (role_id,permission_id) VALUES (1,?)')->execute([$permissionId]);

@@ -7,13 +7,12 @@ Defines the first versioned database baseline for installer provisioning, tenant
 ## Requirements
 
 ### Requirement: Baseline Tables
-
-Versioned migrations MUST create `businesses`, `branches`, `business_settings`, `branch_settings`, `users`, `roles`, `permissions`, `role_permissions`, `user_roles`, `user_branches`, and `audit_log` using InnoDB and utf8mb4.
+Versioned migrations MUST create `businesses`, `branches`, `business_settings`, `branch_settings`, `users`, `roles`, `permissions`, `role_permissions`, `user_roles`, `user_branches`, `audit_log`, auth runtime tables, catalog tables, pricing/promotions tables, cart tables (with delivery zone/fee/payout columns), order/customer/stock/idempotency tables (with delivery zone snapshot and payout columns), `payments` plus `payment_events`, `delivery_zones`, `delivery_persons`, `delivery_person_branches`, `deliveries`, and the `notification_events` outbox table using InnoDB and utf8mb4.
 
 #### Scenario: Fresh baseline migration
 - GIVEN an empty database
-- WHEN migrations run
-- THEN all baseline tables exist
+- WHEN migrations run through version `010`
+- THEN all baseline, auth, catalog, pricing, cart, order, payment, delivery, and notification outbox tables exist
 - AND table definitions use InnoDB-compatible FKs and utf8mb4-compatible text columns.
 
 ### Requirement: Required Constraints
@@ -47,10 +46,55 @@ Installer seed data MUST create an owner role and store the permission keys `ord
 - AND permission keys are stored as rows, not hard-coded columns or tables.
 
 ### Requirement: Schema Scope Guard
-
-Baseline schema MUST NOT create catalog, orders, payments, delivery, customers, updater, backup, worker, module, or authentication-session tables.
+Baseline schema MUST NOT create updater, backup, worker, module, or future integration tables beyond payments, payment event history, the delivery schema (zones, persons, person-branch pivot, deliveries), and the `notification_events` notification outbox.
 
 #### Scenario: Deferred tables absent
-- GIVEN baseline migrations completed
+- GIVEN migrations completed through version `010`
 - WHEN table names are listed
-- THEN only installer baseline and migration infrastructure tables exist.
+- THEN payment, delivery, and notification outbox tables exist
+- AND updater, backup, worker, and module tables remain absent.
+
+### Requirement: Migration 010 notification outbox
+Migration `010` MUST create `notification_events` with auto-increment id, FK-scoped `business_id`, `event` (VARCHAR 64), `channel` ENUM(`email`,`whatsapp`), `recipient` VARCHAR(190), nullable `subject` VARCHAR(190), nullable `context_json` (resolution ids only — no PIN, secrets, or customer data beyond the recipient), `state` ENUM(`pending`,`sent`,`failed`) defaulting to `pending`, `attempts` TINYINT defaulting to 0, nullable `last_error` VARCHAR(500), `created_at` defaulting to current timestamp, and nullable `sent_at`; with lookup indexes on (business_id, state), `event`, and `created_at`. The migration MUST seed no permissions and no settings rows; notification flags are opt-in through the settings UI.
+
+#### Scenario: Outbox table and indexes available
+- GIVEN migrations run on a fresh database through version `010`
+- WHEN table, column, and index metadata is inspected
+- THEN `notification_events` exists with the required columns, defaults, and the three lookup indexes.
+
+#### Scenario: Invalid business rejected
+- GIVEN a `notification_events` insert referencing a nonexistent business
+- WHEN the insert executes
+- THEN the foreign key rejects it.
+
+#### Scenario: Rerun is stable and default state is pending
+- GIVEN migration `010` was applied
+- WHEN the migration runner executes again
+- THEN version `010` is not applied twice
+- AND a fresh insert without explicit state persists as `pending` with `attempts` 0.
+
+### Requirement: Migration 009 delivery schema
+Migration `009` MUST create `delivery_zones`, `delivery_persons`, `delivery_person_branches`, and `deliveries` with branch scoping, match terms, independent customer/driver rates, a guarded deliveries state machine (hash-based PIN, attempt counter, failure reason), extend carts and orders with delivery zone/fee/payout columns, seed the `deliveries.manage` permission, and provision per-business `delivery.pin_key` settings for businesses existing at migration time (later businesses are provisioned lazily).
+
+#### Scenario: Delivery tables and columns available
+- GIVEN migrations run through version `009`
+- WHEN table and column metadata is inspected
+- THEN the delivery tables exist with state/audit columns, and carts/orders expose the delivery zone, fee, and payout columns.
+
+#### Scenario: Permission and pin key seeds
+- GIVEN migration `009` has run
+- WHEN permissions and business settings are inspected
+- THEN `deliveries.manage` exists bound to the owner role when that role pre-exists, and businesses present at migration time have a non-empty `delivery.pin_key`.
+
+### Requirement: Payment persistence tables
+Migration `007` MUST create `payments` and `payment_events` with integer money snapshots, legal state constraints, provider identifiers, proof metadata, verifier metadata, timestamps, FK scope, and indexes for order, business, state, method, provider payment, and external reference lookups.
+
+#### Scenario: Payment tables available
+- GIVEN migrations run on a fresh database
+- WHEN table and index metadata is inspected
+- THEN `payments` and `payment_events` exist with required constraints and lookup indexes.
+
+#### Scenario: External reference duplicate rejected
+- GIVEN a payment has a non-null external reference
+- WHEN another payment uses the same reference
+- THEN the database rejects the duplicate.

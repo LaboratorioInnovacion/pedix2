@@ -78,6 +78,8 @@ final class CartApiScratchDatabase
         $this->pdo->exec("INSERT INTO modifiers (group_id,name,price_delta_cents,is_active) VALUES ($g,'Cheese',100,1),($g,'Bacon',100,1),($g,'Sauce',100,1),($g,'Onion',100,1)"); $mods=$this->pdo->query("SELECT id,name FROM modifiers")->fetchAll(PDO::FETCH_KEY_PAIR);
         $this->pdo->exec("INSERT INTO item_modifier_group (item_id,group_id) VALUES ($pizza,$g),($burger,$g)");
         $this->pdo->exec("INSERT INTO coupons (code,discount_basis_points,min_amount_cents) VALUES ('FIFTY',5000,100)");
+        // Delivery coverage zone for branch1 so delivery checkout-data resolves (street 'A', city 'B').
+        $this->pdo->exec("INSERT INTO delivery_zones (branch_id,name,match_terms,customer_rate_cents,driver_payout_cents,is_active) VALUES ($b1,'Zona A','a, b',300,150,1)");
         return ['branch1'=>$b1,'branch2'=>$b2,'pizza'=>$pizza,'pizza_variant'=>$pv,'service'=>$service,'drink'=>$drink,'burger'=>$burger,'burger_variant'=>$bv,'cheese'=>(int)array_search('Cheese',$mods,true),'bacon'=>(int)array_search('Bacon',$mods,true),'sauce'=>(int)array_search('Sauce',$mods,true),'onion'=>(int)array_search('Onion',$mods,true)];
     }
     public function drop(): void { $this->server->exec("DROP DATABASE IF EXISTS `$this->name`"); }

@@ -1,7 +1,7 @@
 <?php declare(strict_types=1);
 namespace VO\Cart;
 
-use InvalidArgumentException; use VO\Domain\IdempotencyConflictException; use VO\Http\JsonResponse; use VO\Http\Request; use VO\Inventory\InsufficientStockException; use VO\Orders\EmptyCartException; use VO\Orders\OrderService; use VO\Orders\PriceChangedException;
+use InvalidArgumentException; use VO\Domain\IdempotencyConflictException; use VO\Delivery\DeliveryUnavailableException; use VO\Http\JsonResponse; use VO\Http\Request; use VO\Inventory\InsufficientStockException; use VO\Orders\EmptyCartException; use VO\Orders\OrderService; use VO\Orders\PriceChangedException;
 
 final class CartApiController
 {
@@ -27,7 +27,7 @@ final class CartApiController
         } catch (IdempotencyConflictException $e) { $res=JsonResponse::error('idempotency_conflict',$e->getMessage(),409,$rid); }
         return $this->issued ? $res->withHeader('Set-Cookie', CartToken::cookie($this->token)) : $res;
     }
-    private function wrap(Request $r, callable $fn): JsonResponse { try { $hash=$this->hash($r); $res=JsonResponse::ok($fn($hash), $r->attribute('request_id')); return $this->issued ? $res->withHeader('Set-Cookie', CartToken::cookie($this->token)) : $res; } catch (CartValidationException $e) { $res=JsonResponse::error('cart_error',$e->getMessage(),$e->status,$r->attribute('request_id')); return $this->issued ? $res->withHeader('Set-Cookie', CartToken::cookie($this->token)) : $res; } }
+    private function wrap(Request $r, callable $fn): JsonResponse { try { $hash=$this->hash($r); $res=JsonResponse::ok($fn($hash), $r->attribute('request_id')); return $this->issued ? $res->withHeader('Set-Cookie', CartToken::cookie($this->token)) : $res; } catch (DeliveryUnavailableException $e) { $res=JsonResponse::error(DeliveryUnavailableException::CODE,$e->getMessage(),$e->status,$r->attribute('request_id')); return $this->issued ? $res->withHeader('Set-Cookie', CartToken::cookie($this->token)) : $res; } catch (CartValidationException $e) { $res=JsonResponse::error('cart_error',$e->getMessage(),$e->status,$r->attribute('request_id')); return $this->issued ? $res->withHeader('Set-Cookie', CartToken::cookie($this->token)) : $res; } }
     private function hash(Request $r): string { $t=$r->cookie(CartToken::COOKIE); if (!CartToken::valid($t)) { $this->token=CartToken::issue(); $this->issued=true; return CartToken::hash($this->token); } $this->token=(string)$t; return CartToken::hash((string)$t); }
     private function body(): array { $raw=(string)file_get_contents('php://input'); $json=json_decode($raw,true); if (is_array($json)) return $json; parse_str($raw,$form); return is_array($form)?$form:[]; }
 }

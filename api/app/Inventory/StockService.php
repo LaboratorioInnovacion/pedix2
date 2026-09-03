@@ -42,6 +42,18 @@ final class StockService
         }
     }
 
+    /** Guarded consume on acceptance: decreases stock and reserved together; a repeat call fails the guard and is a no-op. */
+    public function consume(int $businessId, int $branchId, int $orderId, array $items): void
+    {
+        foreach ($this->quantities($items) as $line) {
+            $row = $this->branchItem($branchId, (int)$line['item_id']);
+            if (!$row || $row['stock_mode'] !== 'simple') continue;
+            $qty = (int)$line['quantity'];
+            $ok = $this->db->execute('UPDATE branch_items SET stock_quantity=stock_quantity-?, reserved_quantity=reserved_quantity-? WHERE branch_id=? AND item_id=? AND stock_mode=? AND stock_quantity>=? AND reserved_quantity>=?', [$qty,$qty,$branchId,(int)$line['item_id'],'simple',$qty,$qty]);
+            if ($ok === 1) $this->movement($businessId,$branchId,$orderId,(int)$line['item_id'],$line['variant_id'],-$qty,'consume_accepted','Order stock consume');
+        }
+    }
+
     private function branchItem(int $branchId, int $itemId): ?array { $r=$this->db->select('SELECT * FROM branch_items WHERE branch_id=? AND item_id=? LIMIT 1 FOR UPDATE', [$branchId,$itemId]); return $r[0] ?? null; }
     private function movement(int $businessId, int $branchId, int $orderId, int $itemId, ?int $variantId, int $qty, string $reason, string $note): void { $this->db->execute('INSERT INTO stock_movements (business_id,branch_id,order_id,item_id,variant_id,quantity_delta,reason,note,actor_type) VALUES (?,?,?,?,?,?,?,?,?)', [$businessId,$branchId,$orderId,$itemId,$variantId,$qty,$reason,$note,'system']); }
     private function quantities(array $items): array { $out=[]; foreach ($items as $i) { $k=(int)$i['item_id'] . ':' . ($i['variant_id'] ?? ''); $out[$k] ??= ['item_id'=>(int)$i['item_id'],'variant_id'=>$i['variant_id']===null?null:(int)$i['variant_id'],'quantity'=>0]; $out[$k]['quantity'] += (int)($i['qty'] ?? $i['quantity']); } return array_values($out); }

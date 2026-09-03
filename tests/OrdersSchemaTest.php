@@ -13,7 +13,7 @@ final class OrdersSchemaTest extends TestCase
         $scratch = ScratchDatabase::create('vo_orders7_test_'); if ($scratch === null) return;
         try {
             $runner = new MigrationRunner($scratch->connection(), dirname(__DIR__) . '/api/database/migrations');
-            $this->assertSame(['001 create_baseline', '002 create_auth_runtime', '003 create_catalog', '004 create_pricing_promotions', '005 create_cart', '006 create_orders', '007 create_payments'], $runner->run());
+            $this->assertSame(['001 create_baseline', '002 create_auth_runtime', '003 create_catalog', '004 create_pricing_promotions', '005 create_cart', '006 create_orders', '007 create_payments', '008 operations', '009 delivery', '010 notifications'], $runner->run());
             $this->assertSame([], $runner->run());
             $tables = $scratch->tables();
             foreach (['customers','order_counters','orders','order_items','order_item_modifiers','order_addresses','order_discounts','promotion_usage','stock_movements','idempotency_keys'] as $table) $this->assertTrue(in_array($table, $tables, true), "$table missing");

@@ -4,7 +4,7 @@ use VO\Database\Connection;
 
 final class InstallerSeeder
 {
-    public const PERMISSIONS = ['orders.view','orders.accept','orders.reject','orders.modify','orders.prepare','orders.mark_ready','orders.cancel','products.edit_price','products.change_availability','products.manage_stock','products.manage','deliveries.assign','deliveries.reassign','payments.verify_transfer','settings.manage','users.manage','reports.view'];
+    public const PERMISSIONS = ['orders.view','orders.accept','orders.reject','orders.modify','orders.prepare','orders.mark_ready','orders.cancel','products.edit_price','products.change_availability','products.manage_stock','products.manage','deliveries.assign','deliveries.reassign','deliveries.manage','payments.verify_transfer','settings.manage','users.manage','reports.view'];
 
     public function __construct(private Connection $db) {}
 
