@@ -87,5 +87,17 @@ final class OrderRepository
         return $this->db->select($sql . ' ORDER BY o.created_at ASC, o.id ASC', $params);
     }
 
+    /** Dashboard quick flows: up to $limit orders in the given statuses, oldest first, scoped to the operator's branches. */
+    public function listByStatusLimited(int $userId, array $statuses, int $limit): array
+    {
+        $statuses = array_values(array_filter($statuses, static fn($s): bool => is_string($s) && $s !== ''));
+        if ($statuses === []) return [];
+        $in = implode(',', array_fill(0, count($statuses), '?'));
+        return $this->db->select(
+            "SELECT o.id,o.number,o.status,o.branch_id,o.grand_total_cents,o.created_at,b.name branch_name FROM orders o INNER JOIN branches b ON b.id=o.branch_id INNER JOIN user_branches ub ON ub.branch_id=o.branch_id WHERE ub.user_id=? AND o.status IN ($in) ORDER BY o.created_at ASC, o.id ASC LIMIT " . max(1, $limit),
+            [$userId, ...$statuses]
+        );
+    }
+
     private function one(string $sql, array $p=[]): ?array { $r=$this->db->select($sql,$p); return $r[0] ?? null; }
 }

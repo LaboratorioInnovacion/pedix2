@@ -7,9 +7,11 @@ use VO\Audit\AuditService;
 use VO\Auth\AuthSession;
 use VO\Auth\CsrfService;
 use VO\Auth\LoginService;
+use VO\Auth\PermissionGuard;
 use VO\Http\Request;
 use VO\Database\PdoConnection;
 use VO\Notifications\NotificationTransportFactory;
+use VO\Orders\OrderRepository;
 use VO\Reports\ReportsRepository;
 use VO\Support\Template;
 
@@ -30,6 +32,7 @@ final class AdminController
         $this->tpl = new Template($root . '/api/app/Admin/templates');
         $this->audit = new AuditService($this->pdo);
         $this->requestId = $requestId;
+        AdminNav::share($this->pdo);
     }
 
     public static function startSession(): void
@@ -83,8 +86,18 @@ final class AdminController
         $user = $this->currentUser();
         if ($user === null) $this->redirect('/admin/login');
         try { NotificationTransportFactory::service($this->pdo, (int)$user['business_id'])->dispatchPendingLazy((int)$user['business_id']); } catch (Throwable) { /* notification sweep is best-effort (spec N3) */ }
+        $guard = new PermissionGuard($this->pdo, (int)$user['id']);
+        $orders = new OrderRepository(new PdoConnection('', factory: fn () => $this->pdo));
+        // Quick flows (admin UX): minimal scoped rows so the operator acts without navigating.
+        // Each block is permission-gated and the template hides empty ones entirely.
+        $quick = [
+            'pending' => $guard->requirePermission('orders.accept') ? $orders->listByStatusLimited((int)$user['id'], ['pending', 'change_proposed'], 5) : [],
+            'ready' => $guard->requirePermission('orders.prepare') ? $orders->listByStatusLimited((int)$user['id'], ['ready'], 5) : [],
+            'payments' => $guard->requirePermission('products.manage') ? $this->countRows("SELECT COUNT(*) FROM payments p JOIN orders o ON o.id=p.order_id JOIN user_branches ub ON ub.branch_id=o.branch_id AND ub.user_id=? WHERE p.state='pending_verification'", [(int)$user['id']]) : 0,
+        ];
         $metrics = (new ReportsRepository(new PdoConnection('', factory: fn () => $this->pdo)))->dashboard((int)$user['id']);
-        echo $this->tpl->render('dashboard', ['csrf' => $this->csrf(), 'user' => $user, 'metrics' => $metrics]);
+        [$flashOk, $flashErr] = OperationsAdminController::flashFor((string)($_GET['ok'] ?? ''), (string)($_GET['err'] ?? ''));
+        echo $this->tpl->render('dashboard', ['csrf' => $this->csrf(), 'user' => $user, 'metrics' => $metrics, 'quick' => $quick, 'flashOk' => $flashOk, 'flashErr' => $flashErr]);
         exit;
     }
 
@@ -107,6 +120,13 @@ final class AdminController
         $stmt = $this->pdo->prepare('SELECT u.id, u.business_id, u.name, u.email, b.name business_name FROM users u INNER JOIN businesses b ON b.id = u.business_id WHERE u.id = (SELECT user_id FROM auth_sessions WHERE sid_hash = ? LIMIT 1) LIMIT 1');
         $stmt->execute([AuthSession::hash($sid)]);
         return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+    }
+
+    private function countRows(string $sql, array $params = []): int
+    {
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute($params);
+        return (int)$stmt->fetchColumn();
     }
 
     private function pdo(): PDO

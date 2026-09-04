@@ -149,7 +149,7 @@ final class OperationsAdminController
         if (!$order) $this->notFound();
         $reason = isset($_POST['reason']) && trim((string)$_POST['reason']) !== '' ? trim((string)$_POST['reason']) : null;
         if ($to === 'cancelled' && $reason === null) $this->error(422, 'El motivo es obligatorio para cancelar un pedido.');
-        $back = ($_POST['back'] ?? '') === 'detail' ? '/admin/pedidos/' . $orderId : '/admin/operacion';
+        $back = match ((string)($_POST['back'] ?? '')) { 'detail' => '/admin/pedidos/' . $orderId, 'dashboard' => '/admin/', default => '/admin/operacion' }; // dashboard = quick flows on the home panel
         $branchId = isset($_POST['branch_id']) && (int)$_POST['branch_id'] > 0 ? (int)$_POST['branch_id'] : null;
         $query = array_filter(['branch_id' => $back === '/admin/operacion' ? $branchId : null, 'auto' => $back === '/admin/operacion' && (string)($_POST['auto'] ?? '') === '1' ? '1' : null], static fn(mixed $v): bool => $v !== null);
         $query['ok'] = $accion;
