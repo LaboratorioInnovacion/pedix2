@@ -10,9 +10,11 @@ final class Template
         return htmlspecialchars((string)$value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
     }
 
-    public function render(string $view, array $data = []): string
+    public function render(string $view, array $vars = []): string
     {
-        extract($data, EXTR_SKIP);
+        // Parameter must not be named $data: a template variable named 'data' would
+        // collide with it under EXTR_SKIP and silently render empty values.
+        extract($vars, EXTR_SKIP);
         ob_start();
         require $this->basePath . '/' . $view . '.php';
         return (string)ob_get_clean();
