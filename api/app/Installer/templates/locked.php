@@ -1,0 +1,1 @@
+<?php ob_start(); ?><h1>Instalador bloqueado</h1><p class="lead">La tienda ya fue instalada. No hay formularios ni datos de configuración disponibles.</p><?php $content=ob_get_clean(); require __DIR__.'/layout.php'; ?>

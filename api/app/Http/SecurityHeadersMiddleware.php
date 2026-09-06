@@ -6,12 +6,19 @@ namespace VO\Http;
 
 final class SecurityHeadersMiddleware implements Middleware
 {
+    public const HEADERS = [
+        'Content-Security-Policy' => "default-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+        'X-Content-Type-Options' => 'nosniff',
+        'Referrer-Policy' => 'no-referrer',
+        'Permissions-Policy' => 'geolocation=(), camera=(), microphone=(), payment=()',
+    ];
+
     public function handle(Request $request, callable $next): JsonResponse
     {
-        return $next($request)
-            ->withHeader('Content-Security-Policy', "default-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'")
-            ->withHeader('X-Content-Type-Options', 'nosniff')
-            ->withHeader('Referrer-Policy', 'no-referrer')
-            ->withHeader('Permissions-Policy', 'geolocation=(), camera=(), microphone=(), payment=()');
+        $response = $next($request);
+        foreach (self::HEADERS as $name => $value) {
+            $response = $response->withHeader($name, $value);
+        }
+        return $response;
     }
 }

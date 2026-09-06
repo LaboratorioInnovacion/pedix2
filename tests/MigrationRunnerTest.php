@@ -19,7 +19,7 @@ final class MigrationRunnerTest extends TestCase
         $this->assertThrows(RuntimeException::class, static fn () => (new MigrationRunner(new FakeConnection(), $dir))->run());
     }
 
-    private function tempDir(string $name): string
+    protected function tempDir(string $name): string
     {
         $dir = sys_get_temp_dir() . '/vo_' . $name . '_' . uniqid(); mkdir($dir); return $dir;
     }

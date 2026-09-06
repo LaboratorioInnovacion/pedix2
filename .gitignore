@@ -1,1 +1,9 @@
 .atl/.skill-registry.cache.json
+
+# Runtime data (dev/test)
+api/storage/proofs/
+api/storage/logs/*.log
+*.log
+
+# Local install config (contains DB credentials - written by /install/)
+api/config/installed.php

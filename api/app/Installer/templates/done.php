@@ -1,0 +1,1 @@
+<?php ob_start(); ?><h1>Instalación completa</h1><p class="lead">Vender Online quedó listo. Por seguridad, este instalador quedó bloqueado.</p><?php $content=ob_get_clean(); require __DIR__.'/layout.php'; ?>

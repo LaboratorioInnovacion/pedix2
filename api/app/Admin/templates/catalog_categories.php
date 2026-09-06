@@ -1,0 +1,5 @@
+<?php use VO\Support\Template; ob_start(); ?>
+<h1>Categorías</h1><?php foreach ($errors as $e): ?><p class="error"><?= Template::e($e) ?></p><?php endforeach; ?>
+<form method="post" action="/admin/categorias" class="card"><input type="hidden" name="csrf" value="<?= Template::e($csrf) ?>"><label>Nombre <input name="name"></label><label>Slug <input name="slug"></label><label><input type="checkbox" name="is_active" value="1" checked> Activa</label><button class="btn">Guardar categoría</button></form>
+<section class="card"><h2>Listado</h2><?php foreach ($categories as $c): ?><form method="post" action="/admin/categorias"><input type="hidden" name="csrf" value="<?= Template::e($csrf) ?>"><input type="hidden" name="id" value="<?= (int)$c['id'] ?>"><input name="name" value="<?= Template::e($c['name']) ?>"><input name="slug" value="<?= Template::e($c['slug']) ?>"><input type="hidden" name="is_active" value="1"><button>Actualizar</button><button name="action" value="archive">Archivar</button></form><?php endforeach; ?></section>
+<?php $content = ob_get_clean(); $title = 'Categorías'; require __DIR__ . '/layout.php'; ?>

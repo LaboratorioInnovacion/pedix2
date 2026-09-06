@@ -1,0 +1,32 @@
+:root{color-scheme:light;--bg:#f5f2ec;--card:#fff;--text:#1f2933;--muted:#687385;--brand:#8a4b2f;--line:#e5ded3}*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--text)}.shell{width:min(1080px,100%);margin:0 auto;padding:24px}.card,.top{background:var(--card);border:1px solid var(--line);border-radius:20px;box-shadow:0 12px 30px #1f293314}.login{max-width:440px;margin:8vh auto;padding:28px}.top{display:flex;justify-content:space-between;gap:20px;align-items:center;padding:24px;margin-bottom:20px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}.grid .card{padding:20px}.eyebrow{margin:0 0 8px;color:var(--brand);font-weight:700;text-transform:uppercase;letter-spacing:.08em}.muted{color:var(--muted)}.error{background:#fee2e2;color:#991b1b;padding:12px;border-radius:12px}label{display:block;margin:14px 0;font-weight:600}input{width:100%;margin-top:6px;padding:12px;border:1px solid var(--line);border-radius:12px;font:inherit}.btn{border:0;border-radius:999px;background:var(--brand);color:white;padding:12px 18px;font-weight:700;cursor:pointer}.secondary{background:#334155}@media (max-width:640px){.shell{padding:14px}.top{align-items:flex-start;flex-direction:column}.login{margin:2vh auto;padding:20px}}
+/* Admin sidebar shell: fixed column on desktop, off-canvas checkbox toggle on narrow screens (no JS: CSP forbids inline scripts). */
+.nav-toggle{position:fixed;opacity:0;pointer-events:none}
+.topbar{display:none}
+.burger{display:none}
+.admin-shell{min-height:100vh;padding-left:220px}
+.sidebar{position:fixed;top:0;left:0;bottom:0;width:220px;background:#241a12;color:#f3ece2;padding:20px 14px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;z-index:30}
+.sidebar .brand{margin:0 0 14px;color:#fff;font-weight:700;line-height:1.3}
+.sidebar nav{display:flex;flex-direction:column;gap:2px}
+.sidebar nav a{display:block;color:#e8dccb;text-decoration:none;padding:9px 12px;border-radius:12px;font-weight:600}
+.sidebar nav a:hover{background:#3a2c1e}
+.sidebar nav a.active{background:var(--brand);color:#fff}
+.sidebar .jump{margin-top:auto;padding:12px 0 4px;border-top:1px solid #3a2c1e}
+.sidebar .jump label{margin:0 0 6px;color:#cbb9a4;font-size:.85rem}
+.sidebar .jump input{margin-top:0}
+.sidebar .logout{margin-top:4px}
+.sidebar .logout .btn{width:100%}
+/* Dashboard quick flows */
+.quick .quick-group{margin:10px 0 16px}
+.quick h3{margin:0 0 8px}
+.quick-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;border-top:1px solid var(--line);padding:8px 0}
+.quick-row form{margin-left:auto}
+.quick-pay{margin:4px 0 0;font-weight:600}
+@media (max-width:900px){
+.admin-shell{padding-left:0}
+.topbar{display:flex;align-items:center;gap:12px;background:#241a12;color:#fff;padding:10px 14px;position:sticky;top:0;z-index:40}
+.burger{display:inline-flex;flex-direction:column;gap:4px;cursor:pointer;padding:8px;margin:-4px 0}
+.burger span{width:20px;height:2px;background:#fff;border-radius:2px}
+.topbar-name{font-weight:700}
+.sidebar{width:240px;transform:translateX(-105%);transition:transform .18s ease}
+.nav-toggle:checked~.admin-shell .sidebar{transform:none}
+}

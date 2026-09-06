@@ -1,0 +1,2 @@
+<?php use VO\Support\Template; ?>
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?= Template::e($title ?? 'Catálogo') ?></title><link rel="stylesheet" href="/assets/catalog.css"></head><body><header class="top"><a href="/" class="brand">Catálogo</a><form action="/buscar" method="get"><input name="q" value="<?= Template::e($q ?? '') ?>" placeholder="Buscar productos"><button>Buscar</button></form><a href="/carrito">Carrito</a></header><main class="wrap"><?= $content ?></main></body></html>
